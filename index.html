@@ -203,7 +203,7 @@
             document.getElementById('dialBtn').disabled = true; document.getElementById('dialHint').textContent = '正在拨通...'; showPage('pageLoading'); document.getElementById('audioConnecting').play();
             let rawStory = '';
             try {
-                const response = await fetch('http://localhost:5000/story', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, path_type: '自我实现' }) });
+                const response = await fetch('/story', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, path_type: '自我实现' }) });
                 const data = await response.json(); if (!data.success) throw new Error('story failed'); rawStory = data.text; document.getElementById('audioConnecting').pause(); document.getElementById('audioConnecting').currentTime = 0;
             } catch (error) { document.getElementById('audioConnecting').pause(); document.getElementById('audioConnecting').currentTime = 0; rawStory = '你走进那条没有选择的路。清晨的窗光落在桌面，新的工作、新的账单和没有回完的消息一起到来。|||你伸手关掉闹钟，门外有人叫你的名字。'; }
             showPage('pageStory');
