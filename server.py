@@ -60,7 +60,7 @@ def get_story():
                 "max_tokens": 500,
                 "temperature": 0.8
             },
-            timeout=15
+            timeout=60
         )
         result = resp.json()
         story = result['choices'][0]['message']['content']
