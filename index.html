@@ -18,6 +18,12 @@
         .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; user-select: none; pointer-events: none; }
         .contained-art { background: #fff; }
         .contained-art .art { object-fit: contain; }
+        #screenFilter { position: fixed; inset: 0; z-index: 999; pointer-events: none; opacity: 0; transition: opacity .5s, background-color .5s; }
+        #screenFilter.filter-normal { opacity: 0; background: transparent; }
+        #screenFilter.filter-yellow { opacity: 1; background: rgba(255, 200, 0, .15); mix-blend-mode: multiply; }
+        #screenFilter.filter-glitch { opacity: 1; background: repeating-linear-gradient(0deg, rgba(18, 18, 18, .12) 0 1px, transparent 1px 5px), linear-gradient(90deg, rgba(255, 0, 40, .18), transparent 18%, transparent 82%, rgba(0, 190, 220, .18)); mix-blend-mode: multiply; animation: screenGlitch .18s steps(2, end) infinite; }
+        #screenFilter.filter-glitch::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 0 8%, rgba(255, 0, 40, .08) 8% 9%, transparent 9% 91%, rgba(0, 190, 220, .08) 91% 92%, transparent 92%); mix-blend-mode: screen; }
+        @keyframes screenGlitch { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(2px); } }
         .hotzone { position: absolute; z-index: 3; cursor: pointer; background: transparent; border: 0; }
         .hotzone:focus-visible { outline: 3px dashed #c33; outline-offset: 4px; }
         .coin-number { position: absolute; z-index: 4; top: 40.5%; right: 46.5%; color: #000; font-size: clamp(1.25rem, 3vw, 2rem); letter-spacing: .08em; transform: rotate(-3deg); pointer-events: none; }
@@ -42,14 +48,21 @@
         .story-copy { position: absolute; z-index: 2; left: 50%; top: 7%; width: min(72vw, 55rem); height: 70%; transform: translateX(-50%); overflow: hidden; padding: 0 1.2rem; color: var(--ink); font-size: clamp(1.35rem, 2.4vw, 2rem); line-height: 14.2vh; text-align: left; white-space: pre-wrap; }
         .story-hotzone { position: absolute; z-index: 3; inset: 0; cursor: pointer; }
         .story-progress { position: absolute; z-index: 2; right: 5%; bottom: 5%; font-size: .95rem; }
-        .choice-zone { top: 25%; height: 34%; width: 28%; }
-        .choice-stay { left: 11%; }
-        .choice-leave { right: 11%; }
-        .choice-label { position: absolute; z-index: 2; bottom: 12%; color: transparent; pointer-events: none; }
+        #pageChoice { background: #f4eee3; }
+        #pageChoice .choice-background { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+        .choice-buttons { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 2.4rem; transition: gap .35s ease; }
+        .choice-btn { min-height: 2.6rem; padding: .7rem 1.2rem; background: rgba(255,255,255,.55); border: 2px solid #000; border-radius: .3rem; color: #000; font-family: "ZCOOL KuaiLe", "Microsoft YaHei", sans-serif; font-size: clamp(1rem, 2.4vw, 1.5rem); cursor: pointer; text-align: center; transition: width .35s ease, font-size .35s ease, padding .35s ease, color .2s; box-sizing: border-box; }
+        .choice-btn:focus-visible { outline: 3px dashed #111; outline-offset: -6px; }
+        .choice-btn-leave.is-shaking { color: #c0392b; animation: choiceShake .3s infinite; }
+        @keyframes choiceShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
         #pageTransition { background: #fff; color: #111; align-items: center; justify-content: center; text-align: center; }
         #pageTransition.active { display: flex; }
         #pageTransition .transition-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity .45s; }
         #pageTransition.show-door .transition-image { opacity: 1; }
+        #pageTransition.white-light { display: flex; background: #fff; }
+        #pageTransition.white-light .transition-image { opacity: 0; }
+        #pageTransition.white-light .transition-copy { animation: lightWords 1.5s ease-in-out forwards; }
+        @keyframes lightWords { 0%, 100% { opacity: 0; } 35%, 70% { opacity: 1; } }
         .transition-copy { position: relative; z-index: 2; width: min(80vw, 40rem); padding: 1.5rem; font-size: clamp(1.5rem, 4vw, 3rem); line-height: 1.7; cursor: pointer; }
         .transition-copy small { display: block; margin-top: 1rem; font-size: .9rem; }
         .restart-zone { top: 35%; left: 27%; width: 48%; height: 32%; }
@@ -77,6 +90,7 @@
     </style>
 </head>
 <body>
+    <div id="screenFilter" class="filter-normal" aria-hidden="true"></div>
     <audio id="audioDoor" src="images/audio/door-opening-sound.mp3" preload="auto"></audio>
     <audio id="audioPage" src="images/audio/page-flip-sound.mp3" preload="auto"></audio>
     <audio id="audioConnecting" src="images/audio/phone.mp3" preload="auto" loop></audio>
@@ -115,9 +129,11 @@
         <span class="story-progress"><span id="progressNum">1</span> / <span id="storyTotal">1</span></span>
     </main>
     <main id="pageChoice" class="page art-page contained-art">
-        <img class="art" src="images/leave-or-stay.PNG" alt="留下还是离开">
-        <button class="hotzone choice-zone choice-stay" onclick="choosePath('stay')" aria-label="留下"></button>
-        <button class="hotzone choice-zone choice-leave" onclick="choosePath('leave')" aria-label="离开"></button>
+        <img class="choice-background" src="images/door-closed.png" alt="关上的门">
+        <div class="choice-buttons">
+            <button id="leaveBtn" class="choice-btn choice-btn-leave" onclick="choosePath('leave')">离开</button>
+            <button id="stayBtn" class="choice-btn choice-btn-stay" onclick="clickStay()">留下</button>
+        </div>
     </main>
     <main id="pageTransition" class="page">
         <img class="transition-image" src="images/door-open.PNG" alt="打开的门">
@@ -154,6 +170,12 @@
         let historyPage = 0;
         let historyReadChunks = [];
         let historyReadIndex = 0;
+        let stayClickCount = 0;
+        let stayLightWaiting = false;
+        function updateScreenFilter() {
+            const filter = document.getElementById('screenFilter');
+            filter.className = coinCount >= 7 ? 'filter-glitch' : coinCount >= 4 ? 'filter-yellow' : 'filter-normal';
+        }
         function showPage(id) {
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
             document.getElementById(id).classList.add('active');
@@ -167,8 +189,6 @@
         }
         function syncContainedHotzones() {
             const mappings = [
-                ['pageChoice', '.choice-stay', { left: .11, top: .25, width: .28, height: .34 }],
-                ['pageChoice', '.choice-leave', { left: .61, top: .25, width: .28, height: .34 }],
                 ['pageEnd', '.restart-zone', { left: .27, top: .35, width: .48, height: .32 }]
             ];
             mappings.forEach(([pageId, selector, area]) => {
@@ -199,7 +219,7 @@
             const input = document.getElementById('ifInput'); let text = input.value.trim();
             if (!text) { alert('请写下你的遗憾'); return; }
             if (!text.startsWith('如果')) text = '如果' + text;
-            coinCount++; localStorage.setItem('ifCoin', coinCount); updateCoinUI();
+            coinCount++; localStorage.setItem('ifCoin', coinCount); updateCoinUI(); updateScreenFilter();
             document.getElementById('dialBtn').disabled = true; document.getElementById('dialHint').textContent = '正在拨通...'; showPage('pageLoading'); document.getElementById('audioConnecting').play();
             let rawStory = '';
             try {
@@ -242,10 +262,70 @@
             return pages.length ? pages : ['信号中断...'];
         }
         function renderChunk() { document.getElementById('storyBox').textContent = storyChunks[currentIndex] || '信号中断...'; document.getElementById('progressNum').textContent = currentIndex + 1; document.getElementById('storyTotal').textContent = storyChunks.length; }
-        function nextPart() { document.getElementById('audioPage').play(); if (currentIndex < storyChunks.length - 1) { currentIndex++; renderChunk(); return; } showPage('pageChoice'); }
-        function choosePath(path) { document.getElementById('audioSwitch').play(); selectedPath = path; transitionStep = 0; clearTimeout(transitionTimer); const page = document.getElementById('pageTransition'); page.classList.toggle('show-door', path === 'leave'); if (path === 'leave') { document.getElementById('audioDoor').play(); } if (path === 'stay') { document.getElementById('audioLight').play(); } document.getElementById('transitionCopy').textContent = ''; showPage('pageTransition'); if (path === 'leave') { document.getElementById('audioEarth').play(); } }
+        function nextPart() { document.getElementById('audioPage').play(); if (currentIndex < storyChunks.length - 1) { currentIndex++; renderChunk(); return; } stayClickCount = 0; updateChoiceButtons(); showPage('pageChoice'); }
+        function updateChoiceButtons() {
+            const progress = Math.min(stayClickCount / 6, 1);
+            const wrapper = document.querySelector('.choice-buttons');
+            const leaveBtn = document.getElementById('leaveBtn');
+            const stayBtn = document.getElementById('stayBtn');
+            const gapRem = 2.4 - progress * 2.2;
+            wrapper.style.gap = gapRem + 'rem';
+            const leaveWidthVw = 30 + progress * 68;
+            leaveBtn.style.width = leaveWidthVw + 'vw';
+            const leaveFontVw = 4 + progress * 15;
+            leaveBtn.style.fontSize = leaveFontVw + 'vw';
+            const leavePadRem = .7 + progress * 3.4;
+            leaveBtn.style.padding = leavePadRem + 'rem 1.4rem';
+            const stayWidthVw = Math.max(30 - progress * 27, 3);
+            stayBtn.style.width = stayWidthVw + 'vw';
+            const stayFontVw = Math.max(4 - progress * 3.6, .35);
+            stayBtn.style.fontSize = stayFontVw + 'vw';
+            const stayPadRem = Math.max(.7 - progress * .62, .08);
+            stayBtn.style.padding = stayPadRem + 'rem .6rem';
+            leaveBtn.classList.toggle('is-shaking', stayClickCount >= 3);
+        }
+        function clickStay() {
+            document.getElementById('audioSwitch').play();
+            if (stayLightWaiting) return;
+            stayClickCount = Math.min(stayClickCount + 1, 6);
+            updateChoiceButtons();
+            if (stayClickCount === 6) startStayWhiteLight();
+        }
+        function startStayWhiteLight() {
+            stayLightWaiting = true;
+            selectedPath = 'stay';
+            transitionStep = 0;
+            const page = document.getElementById('pageTransition');
+            page.classList.remove('show-door');
+            page.classList.add('white-light');
+            document.getElementById('transitionCopy').textContent = '恭喜你成功留下。\n命运将会改变。';
+            document.getElementById('audioLight').play();
+            showPage('pageTransition');
+            transitionTimer = setTimeout(() => {
+                document.getElementById('transitionCopy').textContent = '恭喜你成功留下。\n命运将会改变。';
+                transitionStep = 1;
+            }, 1500);
+        }
+        function choosePath(path) { document.getElementById('audioSwitch').play(); selectedPath = path; transitionStep = 0; clearTimeout(transitionTimer); const page = document.getElementById('pageTransition'); page.classList.remove('white-light'); page.classList.toggle('show-door', path === 'leave'); if (path === 'leave') { document.getElementById('audioDoor').play(); } document.getElementById('transitionCopy').textContent = ''; showPage('pageTransition'); if (path === 'leave') { document.getElementById('audioEarth').play(); } }
         function renderTransition() { document.getElementById('transitionCopy').textContent = selectedPath === 'stay' ? '你选择了“留下”。' : '你选择了“离开”。'; }
         function advanceTransition() {
+            if (stayLightWaiting) {
+                if (transitionStep < 1) return;
+                if (transitionStep === 1) {
+                    stayLightWaiting = false;
+                    transitionStep = 2;
+                    const page = document.getElementById('pageTransition');
+                    page.classList.remove('white-light');
+                    page.classList.add('show-door');
+                    document.getElementById('audioDoor').play();
+                    document.getElementById('transitionCopy').textContent = '';
+                    return;
+                }
+            }
+            if (selectedPath === 'stay' && transitionStep === 2) {
+                showPage('pageMenu');
+                return;
+            }
             if (transitionStep === 0) {
                 transitionStep = 1;
                 document.getElementById('pageTransition').classList.remove('show-door');
@@ -279,7 +359,7 @@
             document.getElementById('endReflection').textContent = reflections[Math.floor(Math.random() * reflections.length)];
         }
         function showEnd() { showPage('pageEnd'); renderEndReflection(); }
-        function restartGame() { document.getElementById('audioEarth').pause(); document.getElementById('audioEarth').currentTime = 0; document.getElementById('audioCoin').play(); document.getElementById('ifInput').value = '如果当年没走艺术'; updateCoinUI(); showPage('pageMenu'); }
+        function restartGame() { document.getElementById('audioEarth').pause(); document.getElementById('audioEarth').currentTime = 0; document.getElementById('audioCoin').play(); document.getElementById('ifInput').value = '如果当年没走艺术'; updateCoinUI(); updateScreenFilter(); showPage('pageMenu'); }
         function saveHistory(ifText, story) { const history = JSON.parse(localStorage.getItem('ifHistory') || '[]'); const now = new Date(); const date = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'); const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'); history.unshift({ time: date + ' ' + time, ifText, story }); localStorage.setItem('ifHistory', JSON.stringify(history.slice(0, 20))); }
         function openHistory() { document.getElementById('audioSwitch').play();
             const history = JSON.parse(localStorage.getItem('ifHistory') || '[]');
@@ -308,6 +388,8 @@
         function closeHistory() { document.getElementById('audioSwitch').play(); showPage('pageMenu'); }
         function escapeHtml(value) { return value.replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]); }
         updateCoinUI();
+        updateScreenFilter();
+        updateChoiceButtons();
     </script>
 </body>
 </html>
